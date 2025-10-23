@@ -24,4 +24,12 @@ public interface IUserService extends IService<User> {
      * @return 发送结果
      */
     Result sendCode(String phone, HttpSession session);
+
+    /**
+     * 登录功能
+     * @param loginForm 登录参数，包含手机号、验证码；或者手机号、密码
+     * @param session session
+     * @return 登录结果
+     */
+    Result login(LoginFormDTO loginForm, HttpSession session);
 }
