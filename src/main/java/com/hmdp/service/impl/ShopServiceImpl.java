@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -45,7 +46,22 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             return Result.fail("店铺不存在");
         }
 
-        stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(shop));
+        stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(shop), RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
         return Result.ok(shop);
+    }
+
+    /**
+     * 根据id更新商铺信息
+     * @param shop
+     */
+    @Override
+    public Result updateShopById(Shop shop) {
+        Long shopId = shop.getId();
+        if(shopId == null) {
+            return Result.fail("店铺id不能为空");
+        }
+        updateById(shop);
+        stringRedisTemplate.delete(RedisConstants.CACHE_SHOP_KEY + shopId);
+        return Result.ok();
     }
 }
