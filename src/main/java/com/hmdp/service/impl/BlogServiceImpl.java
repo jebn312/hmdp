@@ -1,13 +1,17 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
+import com.hmdp.entity.Follow;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
+import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.UserHolder;
@@ -35,6 +39,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private IUserService userService;
+    @Autowired
+    private IFollowService followService;
 
     @Override
     public Result queryBlogById(Long id) {
@@ -81,5 +87,27 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         List<UserDTO> result = userService.query().in("id", ids).last("order by field(id, " + idStr + ")").list()
                 .stream().map(user -> BeanUtil.copyProperties(user, UserDTO.class)).collect(Collectors.toList());
         return Result.ok(result);
+    }
+
+    @Override
+    public Result saveBlog(Blog blog) {
+        //1获取当前用户
+        Long userId = UserHolder.getUser().getId();
+        //2保存笔记
+        blog.setUserId(userId);
+        boolean isSave = save(blog);
+        if(!isSave) Result.fail("保存失败");
+        //3获取粉丝列表
+        LambdaQueryWrapper<Follow> eq = new LambdaQueryWrapper<Follow>().eq(Follow::getFollowUserId, userId);
+        List<Follow> list = followService.list(eq);
+        //4推送给粉丝
+        if(CollectionUtil.isNotEmpty(list)) {
+            for (Follow follow : list) {
+                Long id = follow.getUserId();
+                String key = RedisConstants.FEED_KEY + id;
+                stringRedisTemplate.opsForZSet().add(key, blog.getId().toString(), System.currentTimeMillis());
+            }
+        }
+        return Result.ok(blog.getId());
     }
 }
