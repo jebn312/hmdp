@@ -1,9 +1,13 @@
 package com.hmdp.controller;
 
 
-import org.springframework.web.bind.annotation.RequestMapping;
+import com.hmdp.dto.Result;
+import com.hmdp.service.IFollowService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.web.bind.annotation.*;
 
-import org.springframework.web.bind.annotation.RestController;
+import javax.annotation.Resource;
 
 /**
  * <p>
@@ -15,6 +19,21 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/follow")
+@Api(tags = "关注模块")
 public class FollowController {
 
+    @Resource
+    private IFollowService followService;
+
+    @ApiOperation("关注/取消关注")
+    @PutMapping("/{id}/{isFollow}")
+    public Result follow(@PathVariable Long id, @PathVariable Boolean isFollow) {
+        return followService.follow(id, isFollow);
+    }
+
+    @ApiOperation("查询是否关注")
+    @GetMapping("/or/not/{id}")
+    public Result isFollow(@PathVariable Long id) {
+        return followService.isFollow(id);
+    }
 }
