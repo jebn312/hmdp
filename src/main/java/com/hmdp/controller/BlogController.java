@@ -53,11 +53,11 @@ public class BlogController {
         return blogService.queryBlogById(id);
     }
 
-    //@ApiOperation("点赞排行榜")
-    //@GetMapping("/likes/{id}")
-    //public Result queryBlogLikes(@PathVariable("id") Long id) {
-    //    //return blogService.queryBlogLikes(id);
-    //}
+    @ApiOperation("点赞排行榜")
+    @GetMapping("/likes/{id}")
+    public Result queryBlogLikes(@PathVariable("id") Long id) {
+        return blogService.queryBlogLikes(id);
+    }
 
     @ApiOperation("点赞功能实现")
     @PutMapping("/like/{id}")
