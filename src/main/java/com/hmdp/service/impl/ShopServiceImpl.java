@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -41,12 +42,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             Shop shop = JSONUtil.toBean(shopJson, Shop.class);
             return Result.ok(shop);
         }
-        Shop shop = getById(id);
-        if(shop == null) {
+
+        if(shopJson != null) {
             return Result.fail("店铺不存在");
         }
 
-        stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(shop), RedisConstants.CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        Shop shop = getById(id);
+        if(shop == null) {
+            stringRedisTemplate.opsForValue().set(key, "", RedisConstants.CACHE_NULL_TTL * 60 + RandomUtil.randomLong(10, 61), TimeUnit.SECONDS);
+            return Result.fail("店铺不存在");
+        }
+
+        stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(shop), RedisConstants.CACHE_SHOP_TTL * 60 + RandomUtil.randomLong(10, 61), TimeUnit.SECONDS);
         return Result.ok(shop);
     }
 
