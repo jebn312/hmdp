@@ -31,7 +31,8 @@ public class MvcConfig implements WebMvcConfigurer {
                         "/user/code",
                         "/user/login",
                         "/doc.html",
-                        "/swagger-resources/**").order(1);
+                        "/swagger-resources/**",
+                        "/webjars/**").order(1);
         registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**").order(0);
     }
 }
