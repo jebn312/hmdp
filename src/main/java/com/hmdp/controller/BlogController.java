@@ -92,4 +92,17 @@ public class BlogController {
         });
         return Result.ok(records);
     }
+
+    /**
+     * 根据用户id查询博主探店笔记
+     * @param id
+     * @return
+     */
+    @ApiOperation("根据用户id查询博主探店笔记")
+    @GetMapping("/of/user")
+    public Result getBlogByUserId(@RequestParam("id") Long id, @RequestParam(value="current",defaultValue = "1") Integer current) {
+        Page<Blog> blogPage = blogService.query().eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        List<Blog> records = blogPage.getRecords();
+        return Result.ok(records);
+    }
 }
