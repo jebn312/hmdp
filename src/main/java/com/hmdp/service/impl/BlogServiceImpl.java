@@ -6,19 +6,24 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.ScrollResult;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
 import com.hmdp.entity.Follow;
+import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -41,16 +46,24 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private IUserService userService;
     @Autowired
     private IFollowService followService;
-
+    @Autowired
+    private RedissonClient redissonClient;
     @Override
     public Result queryBlogById(Long id) {
         Blog blog = getById(id);
         if(blog == null) return Result.fail("笔记不存在");
-        queryBlogById(blog);
+        queryBlogUser(blog);
+        isBlogLiked(blog);
         return Result.ok(blog);
     }
 
-    private void queryBlogById(Blog blog) {
+    private void queryBlogUser(Blog blog) {
+        User user = userService.getById(blog.getUserId());
+        blog.setIcon(user.getIcon());
+        blog.setName(user.getNickName());
+    }
+
+    private void isBlogLiked(Blog blog) {
         Long userId = UserHolder.getUser().getId();
         if(userId == null) return;
         String key = RedisConstants.BLOG_LIKED_KEY + blog.getId();
@@ -109,5 +122,45 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
         }
         return Result.ok(blog.getId());
+    }
+
+    /**
+     * 查询收件箱
+     * @param lastId 最后分数
+     * @param offset 偏移量
+     * @return
+     */
+    @Override
+    public Result queryBlowOfFollow(Long lastId, Integer offset) {
+        //从用户的收件箱中拉
+        Long userId = UserHolder.getUser().getId();
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet().reverseRangeByScoreWithScores(RedisConstants.FEED_KEY + userId, 0, lastId, offset, 2);
+        if(typedTuples == null || typedTuples.isEmpty()) return Result.ok();
+        //得分排序
+        List<Long> idList = new ArrayList<>(typedTuples.size());
+        long minTime = 0;
+        int os = 1;
+        for (ZSetOperations.TypedTuple<String> tuple : typedTuples) {
+            idList.add(Long.valueOf(tuple.getValue()));
+            long time = tuple.getScore().longValue();
+            //如果time相同，offset+1,否则offset=1
+            if(minTime == time) os++;
+            else {
+                minTime = time;
+                os = 1;
+            }
+        }
+        //获取笔记
+        LambdaQueryWrapper<Blog> eq = new LambdaQueryWrapper<Blog>().in(Blog::getId, idList).last("order by field(id, " + StrUtil.join(",", idList) + ")");
+        List<Blog> blogList = list(eq).stream().map(blog -> {
+            queryBlogUser(blog);
+            isBlogLiked(blog);
+            return blog;}).collect(Collectors.toList());
+        //返回数据和偏移量和时间戳(分数)
+        ScrollResult scrollResult = new ScrollResult();
+        scrollResult.setList(blogList);
+        scrollResult.setMinTime(minTime);
+        scrollResult.setOffset(os);
+        return Result.ok(scrollResult);
     }
 }

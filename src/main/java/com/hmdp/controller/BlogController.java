@@ -75,6 +75,24 @@ public class BlogController {
         return Result.ok(records);
     }
 
+
+    /**
+     * 查询收件箱
+     * @param lastId 最后分数
+     * @param offset 偏移量
+     * @return
+     */
+    @ApiOperation("实现分页查询收邮箱")
+    @GetMapping("/of/follow")
+    public Result queryBlowOfFollow(@RequestParam("lastId") Long lastId, @RequestParam(value = "offset", defaultValue = "0") Integer offset) {
+        return blogService.queryBlowOfFollow(lastId, offset);
+    }
+
+    /**
+     * 查询热门笔记
+     * @return
+     */
+    @ApiOperation("查询热门笔记")
     @GetMapping("/hot")
     public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
         // 根据用户查询
