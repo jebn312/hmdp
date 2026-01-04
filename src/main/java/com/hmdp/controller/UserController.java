@@ -111,4 +111,13 @@ public class UserController {
         return Result.ok(userDTO);
     }
 
+    /**
+     * 签到功能
+     * @return
+     */
+    @ApiOperation("签到功能")
+    @GetMapping("/sign")
+    public Result sign() {
+        return userService.sign();
+    }
 }
