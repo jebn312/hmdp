@@ -120,4 +120,14 @@ public class UserController {
     public Result sign() {
         return userService.sign();
     }
+
+    /**
+     * 统计签到功能
+     * @return
+     */
+    @ApiOperation("统计签到功能")
+    @GetMapping("/sign/count")
+    public Result signCount() {
+        return userService.signCount();
+    }
 }

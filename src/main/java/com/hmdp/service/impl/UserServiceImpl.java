@@ -16,6 +16,7 @@ import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,7 @@ import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -114,6 +116,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         //存入redis  SETBIT key offset 1
         stringRedisTemplate.opsForValue().setBit(key, dayOfMonth - 1, true);
         return Result.ok();
+    }
+
+    /**
+     * 统计签到功能
+     * @return
+     */
+    @Override
+    public Result signCount() {
+        //获取当前用户
+        Long userId = UserHolder.getUser().getId();
+        //获取日期-拼接key
+        LocalDateTime now = LocalDateTime.now();
+        String suffix = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));
+        String key = RedisConstants.USER_SIGN_KEY + userId + suffix;
+        //获取当前天数-获取签到列表 bitfield key get uxx 0
+        int dayOfMonth = now.getDayOfMonth();
+        List<Long> result = stringRedisTemplate.opsForValue().bitField(key,
+                BitFieldSubCommands.create().get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0));
+        //返回连续签到天数
+        if(result == null || result.isEmpty()) return Result.ok(0);
+        Long l = result.get(0);
+        if(l == null || l == 0) return Result.ok(0);
+        //遍历-获取最后一位-0返回-1继续
+        int count = 0;
+        while(true) {
+            if((l & 1) == 0) break;
+            else count++;
+            l >>>= 1;
+        }
+        return Result.ok(count);
     }
 
     private User createUserWithPhone(String phone) {
